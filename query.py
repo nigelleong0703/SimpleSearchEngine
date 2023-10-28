@@ -16,6 +16,8 @@ from org.apache.lucene.queryparser.classic import QueryParser
 from org.apache.lucene.search import IndexSearcher, TermRangeQuery
 from org.apache.lucene.document import IntPoint
 
+import time
+
 import json
 
 lucene.initVM()
@@ -24,7 +26,7 @@ class Searher(object):
     def __init__(self, store_dir: str, topK: int):
         # Analyzer
         self.analyzer = CustomAnalyzer()
-        self.topK = 50
+        self.topK = topK
 
         # Create directory instance
         store = FSDirectory.open(Paths.get(storeDir))
@@ -35,37 +37,49 @@ class Searher(object):
         # Create IndexSearcher
         self.searcher = IndexSearcher(reader)
     
-    
-    # def convertToList(self, scoreDocs):
-    #     """ Convert scoreDocs to a list of dict
-    #         scoreDocs: result
 
-    #     Returns:
-    #         list[map]: all docs within given year range [start, end)
-    #     """
-    #     reading_list = []
-    #     for scoreDoc in scoreDocs:
-    #         doc = self.searcher.doc(scoreDoc.doc)
-    #         temp_dict = dict((field.name(), field.stringValue()) for field in doc.getFields())
-    #         print(temp_dict)
-    #         reading_list.append(temp_dict)
-    #     return reading_list
-
-    def printResult(self, scoreDocs, save_to_local:bool, file_name:str):
+    def printResult(self, query, return_all:bool, save_to_local:bool, file_name:str, printing:bool=True):
         """ Convert scoreDocs to a list of dict
             scoreDocs: result
 
         Returns:
             list[map]: all docs within given year range [start, end)
         """
+        if return_all:
+            number = self.searcher.getIndexReader().numDocs()
+        else:
+            number = self.topK
+
+        start_time = time.time()
+        scoreDocs = self.searcher.search(query, number).scoreDocs
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Elapsed time: {elapsed_time:6f} seconds")
+
         reading_list = []
         for index, scoreDoc in enumerate(scoreDocs):
             doc = self.searcher.doc(scoreDoc.doc)
-            temp_dict = dict((field.name(), field.stringValue()) for field in doc.getFields())
-            print(f'DocID: {scoreDoc.doc}')
-            print(f'Score: {scoreDoc.score}')
-            print(f'Rank: {index+1}')
-            print(temp_dict)
+            temp_dict = {}
+            for field in doc.getFields():
+                if field.name() == "author":    
+                    if temp_dict.get(field.name()) == None:
+                        temp_dict[field.name()] = list()
+                    temp_dict[field.name()] = temp_dict.get(field.name()) + [field.stringValue()]
+                else:
+                    temp_dict[field.name()] = field.stringValue()
+            if printing:
+                print(f'DocID: {scoreDoc.doc}')
+                print(f'Score: {scoreDoc.score}')
+                print(f'Rank: {index+1}')
+                
+                for key, value in temp_dict.items():
+                    if key == "key" or key == "mdate":
+                        continue
+                    elif key == "author":
+                        print(f"{key}: {(', '.join(value))}")
+                    else:
+                        print(f"{key}: {value}")
+                print()
             reading_list.append(temp_dict)
 
         if save_to_local:
@@ -77,7 +91,7 @@ class Searher(object):
         return reading_list
 
 
-    def searchByYearRange(self, start: int, end: int, return_all=False, save_to_local=False):
+    def searchByYearRange(self, start: int, end: int, return_all=False, save_to_local=False, printing=True):
         """
         Args:
             start (int): start year
@@ -88,18 +102,15 @@ class Searher(object):
         Returns:
             list[map]: all docs within given year range [start, end)
         """
-        query = IntPoint.newRangeQuery("year", start, end)
-        if return_all: 
-            number = self.searcher.getIndexReader().numDocs()
+        if end:
+            query = IntPoint.newRangeQuery("year", start, end)
         else:
-            number = self.topK
+            query = IntPoint.newRangeQuery("year", start, start)
 
-        scoreDocs = self.searcher.search(query, number).scoreDocs
-        # return self.convertToList(scoreDocs)
-        return self.printResult(scoreDocs, save_to_local, f"yearrange-{start},{end}.json")
+        return self.printResult(query, return_all, save_to_local, f"yearrange-{start},{end}.json", printing)
 
 
-    def searchByConf(self, conf: str, return_all=False, save_to_local=False):
+    def searchByConf(self, conf: str, return_all=False, save_to_local=False, printing=True):
         """
         Args:
             conf (int): venue name
@@ -111,6 +122,7 @@ class Searher(object):
         """
         # query_parser = QueryParser('key', self.analyzer)
         key_query = TermQuery(Term('key',conf))
+        key_query.setBoost(2.0)
 
         booktitle_query = QueryParser('booktitle',self.analyzer).parse(conf)
         
@@ -121,18 +133,10 @@ class Searher(object):
         boolean_query.add(booktitle_query, BooleanClause.Occur.SHOULD)
         boolean_query.add(journal_query, BooleanClause.Occur.SHOULD)
 
-        if return_all:
-            number = self.searcher.getIndexReader().numDocs()
-        else:
-            number = self.topK
-
-        scoreDocs = self.searcher.search(boolean_query.build(), number).scoreDocs
-
-        # return self.convertToList(scoreDocs)
-        return self.printResult(scoreDocs, save_to_local, f"conf-{conf}.json")
+        return self.printResult(boolean_query.build(), return_all, save_to_local, f"conf-{conf}.json", printing)
 
     
-    def searchByKeyword(self, key:str, return_all=False, save_to_local=False):
+    def searchByKeyword(self, key:str, return_all=False, save_to_local=False, printing=True):
         """
         Args:
             key (str): keyword, or phrase
@@ -144,19 +148,11 @@ class Searher(object):
         """
         query_parser = QueryParser('title', self.analyzer)
         query = query_parser.parse(key)
-        
-        if return_all:
-            number = self.searcher.getIndexReader().numDocs()
-        else:
-            number = self.topK
 
-        scoreDocs = self.searcher.search(query, number).scoreDocs
-
-        # return self.convertToList(scoreDocs)
-        self.printResult(scoreDocs, save_to_local, f"keyword-{key}.json")
+        self.printResult(query, return_all, save_to_local, f"keyword-{key}.json", printing)
         
 
-    def searchByAuthor(self, author:str, return_all=False, save_to_local=False):
+    def searchByAuthor(self, author:str, return_all=False, save_to_local=False, printing=True):
         """
         Args:
             author (str): author name query
@@ -167,20 +163,12 @@ class Searher(object):
             list[map]: all docs within given year range [start, end)
         """
         query_parser = QueryParser('author', self.analyzer)
-        query = query_parser.parse(key)
-        
-        if return_all:
-            number = self.searcher.getIndexReader().numDocs()
-        else:
-            number = self.topK
+        query = query_parser.parse(author)
 
-        scoreDocs = self.searcher.search(query, number).scoreDocs
-        # return self.convertToList(scoreDocs)
-        # return self.printResult(scoreDocs, save_to_local)
-        self.printResult(scoreDocs, save_to_local, f"author-{author}.json")
+        self.printResult(query, return_all, save_to_local, f"author-{author}.json", printing)
 
 
-    def multiFieldSearch(self, start: int=None, end: int=None, conf: str=None, key :str=None, author :str=None, return_all=False, save_to_local=False):
+    def multiFieldSearch(self, start: int=None, end: int=None, conf: str=None, key :str=None, author :str=None, return_all=False, save_to_local=False, printing=True):
         """
         Args:
             start (int): start year
@@ -215,52 +203,11 @@ class Searher(object):
             else:
                 year_query = IntPoint.newRangeQuery("year", start, start)
             boolean_query.add(year_query, BooleanClause.Occur.MUST)
-        if return_all:
-            number = self.searcher.getIndexReader().numDocs()
-        else:
-            number = self.topK
 
-        scoreDocs = self.searcher.search(boolean_query.build(), number).scoreDocs
-
-        self.printResult(scoreDocs, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json")
+        self.printResult(boolean_query.build(), return_all, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json", printing)
 
 
     def multiField(self, return_all=False, save_to_local=False):
-        # fields = ["title", "author"]
-        # query_dict = {}
-        # boolean_query = BooleanQuery.Builder()
-        # for field in fields:
-        #     query = input(f"Please enter your search query for {field} (or press Enter to skip): ")
-        #     if query:
-        #         query_parser = QueryParser(field, self.analyzer).parse(query)
-        #         boolean_query.add(query_parser, BooleanClause.Occur.MUST)
-        # conf = input(f"Please enter your search query for venue (or press Enter to skip): ")
-        # if conf:
-        #     key_query = TermQuery(Term('key',conf))
-        #     booktitle_query = QueryParser('booktitle',self.analyzer).parse(conf)      
-        #     journal_query = QueryParser('journal', self.analyzer).parse(conf)
-        #     boolean_conf_query = BooleanQuery.Builder()
-        #     boolean_conf_query.add(key_query, BooleanClause.Occur.SHOULD)
-        #     boolean_conf_query.add(booktitle_query, BooleanClause.Occur.SHOULD)
-        #     boolean_conf_query.add(journal_query, BooleanClause.Occur.SHOULD)
-        #     boolean_query.add(boolean_conf_query.build(), BooleanClause.Occur.MUST)
-        # starting_query = input(f"Please enter your search query for starting year (or press Enter to skip): ")
-        # if starting_query:
-        #     ending_query = input(f"Please enter your search query for ending year (or press Enter to skip): ")
-        #     if ending_query:
-        #         year_query = IntPoint.newRangeQuery("year", int(starting_query), int(ending_query))
-        #     else:
-        #         year_query = IntPoint.newRangeQuery("year", int(starting_query), int(starting_query))
-        #     boolean_query.add(year_query, BooleanClause.Occur.MUST)
-        # if return_all:
-        #     number = self.searcher.getIndexReader().numDocs()
-        # else:
-        #     number = self.topK
-
-        # scoreDocs = self.searcher.search(boolean_query.build(), number).scoreDocs
-
-        # # return self.convertToList(scoreDocs)
-        # return self.printResult(scoreDocs, save_to_local)
         title = input(f"Please enter your search query for title (or press Enter to skip): ")
         author = input(f"Please enter your search query for author (or press Enter to skip): ")
         conf = input(f"Please enter your search query for venue (or press Enter to skip): ")
@@ -291,9 +238,7 @@ if __name__ == "__main__":
     topK = 20
 
     searcher = Searher(store_dir = storeDir, topK = topK)
-    # searcher.searchByYearRange(2020,2020,return_all=True)
-    # searcher.searchByConf("AAAI")
-
+    # searcher.multiFieldSearch(start=2021, conf='IEEE', return_all=True, save_to_local=True)
 
     while True:
         print()
@@ -308,8 +253,18 @@ if __name__ == "__main__":
         option = input()
 
         if option == "1":
-            start_year = int(input("Please enter the start year: "))
-            end_year = int(input("Please enter the end year: "))
+            start_year = input("Please enter the start year: ")
+            while not start_year:
+                start_year = input("Please enter the start year: ")
+            end_year = input("Please enter the end year (or press Enter to skip) : ")
+            if start_year:
+                start_year = int(start_year)
+            else:
+                start_year = None
+            if end_year:
+                end_year = int(end_year)
+            else:
+                end_year = None
             searcher.searchByYearRange(start_year, end_year)
 
         elif option == "2":
@@ -323,14 +278,10 @@ if __name__ == "__main__":
 
         elif option == "4":
             author = input("Please enter the author name: ")
-            searcher.search_by_author(author)
+            searcher.searchByAuthor(author)
 
         elif option == "5":
-            ###########
-            # Multifield Search
             searcher.multiField()
-
-
 
         elif option == "6":
             break
