@@ -3,7 +3,7 @@ To index dblp xml file from database, using PyLucence, and create simple search 
 
 To use this, you need to do the indexing first, and run the search file later to do searching.
 
-## Indexing filebase 
+## Indexing databse
 The code will first detect whether the dblp database is downloaded or not. 
 
 If the database is not downloaded before, the code will download the dataset automatically. 
