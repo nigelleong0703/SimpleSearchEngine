@@ -8,7 +8,6 @@ from datetime import datetime
 
 from utils import dblp
 from lxml import etree
-from java.nio.file import Paths
 from org.apache.lucene.analysis.standard import StandardAnalyzer, StandardTokenizer
 from org.apache.lucene.analysis import LowerCaseFilter, StopFilter
 from org.apache.lucene.analysis.en import PorterStemFilter, EnglishAnalyzer
@@ -236,6 +235,7 @@ class Indexer(object):
 if __name__ == "__main__":
     
     indexer = Indexer(root="./", storeDir="./index/")
+    dblp.download_dataset()
     indexer.indexing("dblp.xml", "dblp.json")
     indexer.ending()
 

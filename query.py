@@ -10,7 +10,7 @@ from org.apache.lucene.index import Term
 from org.apache.lucene.search import BooleanClause, TermQuery, BooleanQuery, PhraseQuery
 from org.apache.pylucene.queryparser.classic import PythonQueryParser, PythonMultiFieldQueryParser
 from org.apache.lucene.store import FSDirectory
-from index import CustomAnalyzer
+from indexing import CustomAnalyzer
 from org.apache.lucene.index import DirectoryReader
 from org.apache.lucene.queryparser.classic import QueryParser
 from org.apache.lucene.search import IndexSearcher, TermRangeQuery
