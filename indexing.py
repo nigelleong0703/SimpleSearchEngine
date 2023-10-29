@@ -9,6 +9,7 @@ from datetime import datetime
 from utils import dblp
 from lxml import etree
 from java.nio.file import Paths
+from java.util import HashMap
 from org.apache.lucene.analysis.standard import StandardAnalyzer, StandardTokenizer
 from org.apache.lucene.analysis import LowerCaseFilter, StopFilter
 from org.apache.lucene.analysis.en import PorterStemFilter, EnglishAnalyzer
@@ -62,7 +63,13 @@ store_field = {
     "publnr",
     "url",
     "ee",
-    "cdrom"
+    "cdrom",
+    "pages",
+    "school",
+    "series",
+    "address",
+    "cdrom",
+    "chapter"
 }
 
 string_field = {
@@ -72,26 +79,29 @@ string_field = {
 }
 
 # create a analyzer class, use to turn string -> token
-class CustomAnalyzer(StandardAnalyzer):
+class CustomAnalyzer(EnglishAnalyzer):
     def __init__(self):
-        StandardAnalyzer.__init__(self)
+        EnglishAnalyzer.__init__(self)
 
     def createComponents(self, fieldName):
         source = StandardTokenizer()
         filter = LowerCaseFilter(source)
-        filter = PorterStemFilter(filter)
+        # filter = PorterStemFilter(filter)
         filter = StopFilter(True, filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
+        filter = PorterStemFilter(filter)
 
         analyzer_per_field = HashMap()
-        source2 = StandardTokenizer
         key_filter = LowerCaseFilter(source)
         analyzer_per_field.put("key", key_filter)
+        author_filter = LowerCaseFilter(source)
+        author_filter = StopFilter(True, author_filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
+        analyzer_per_field.put("author", author_filter)
         wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
 
         # analyzer_per_field = HashMap()
         # analyzer_per_field.put("author",_____)
-        wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
-        # return wrapper
+        # wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
+        return wrapper
 
         # return self.TokenStreamComponents(source, filter)
 
@@ -135,7 +145,38 @@ class Indexer(object):
         self.writer.close()
         print('done')
 
+    
+    def getNumberOfArticle(self, dblp_path: str):
+        context = etree.iterparse(
+                dblp_path,
+                dtd_validation=False,
+                load_dtd=True,
+                no_network=False,
+                encoding="ISO-8859-1",
+                events = ("start","end"),
+                # events = ("end",),
+            )
+        context = iter(context)
+        event, root = next(context)
+
+        total = 0
+        for event, element in context:
+            if element.tag in element_head and event == "end":
+                total = total + 1
+                element.clear()
+
+        del context
+        return total
+
+
     def IndexSingle(self, element):
+        ft = FieldType()
+        ft.setStored(True)
+        ft.setTokenized(True)
+        ft.setStoreTermVectors(True)
+        ft.setStoreTermVectorPositions(True)
+        ft.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+
         doc = Document()
         doc.add(Field("type", element.tag, StringField.TYPE_STORED))
 
@@ -169,9 +210,11 @@ class Indexer(object):
                     doc.add(StoredField(tag, text))
                     # doc.add(Field(tag, text, StoredField.TYPE_STORED))
                 elif tag == "title":
-                    doc.add(Field(tag, text, TextField.TYPE_STORED))
+                    doc.add(Field(tag, text, ft))
+                elif tag == "mdate" or tag == "isbn":
+                    doc.add(Field(tag,text, StringField.TYPE_NOT_STORED))
                 else:
-                    doc.add(Field(tag, text, TextField.TYPE_STORED))
+                    doc.add(Field(tag, text, ft))
         self.writer.addDocument(doc)
 
 
@@ -182,7 +225,8 @@ class Indexer(object):
             print("Warning! dblp.xml not found")
 
         try:
-            
+            self.totalNumber = self.getNumberOfArticle(dblp_path)
+
             context = etree.iterparse(
                 dblp_path,
                 dtd_validation=False,
@@ -192,6 +236,7 @@ class Indexer(object):
                 events = ("start","end"),
                 # events = ("end",),
             )
+            
             number = 0
 
             context = iter(context)
@@ -199,10 +244,13 @@ class Indexer(object):
             # print(root.getprevious())
 
             start_time = time.time()
+            previous_time = start_time
             # total_iterations = 6907631
-            total_iterations = 10256078
+            total_iterations = self.totalNumber
             
-            time_updated = False
+            times = []
+            time_per_cycle = []
+            percent = 0
             with tqdm(total=total_iterations) as pbar:
                 for event, element in context:
                     if element.tag in element_head and event == "end":
@@ -210,19 +258,38 @@ class Indexer(object):
                         self.IndexSingle(temp_element)
                         number = number + 1
                         pbar.update(1)
-                        if number > 1025607 and not time_updated:
-                            end_time = time.time()
-                            time_updated = True
-                            elapsed_time = end_time - start_time
-                            print(f"Elapsed time: {elapsed_time:.2f} seconds")
+                        # if number > 1025607 and not time_updated:
+                        #     end_time = time.time()
+                        #     time_updated = True
+                        #     elapsed_time = end_time - start_time
+                        #     print(f"Elapsed time: {elapsed_time:.2f} seconds")
+                        if number >= total_iterations * percent / 100:
+                            current_time = time.time()
+                            elapsed_time = current_time-start_time
+
+                            cycle_time = current_time-previous_time
+                            time_per_cycle.append(cycle_time)
+                            previous_time = current_time
+                            
+                            times.append(elapsed_time)
+                            print(f'{percent}% done, elapsed time : {elapsed_time}s')
+                            print(f'{percent-10}% - {percent}%: {cycle_time}')
+                            percent += 10
                         element.clear()
-                        # if element.getprevious() is not None:
-                        #     element.clear()3
+            
 
-            # Calculate the elapsed time
-            elapsed_time = end_time - start_time
+            with open('times.txt', 'w') as f:
+                for t in times:
+                    f.write(f'{t}\n')
 
-            print(f"Elapsed time: {elapsed_time:.2f} seconds")
+            with open('times_per_cycle.txt', 'w') as f:
+                for t in time_per_cycle:
+                    f.write(f'{t}\n')
+            
+            # # Calculate the elapsed time
+            # elapsed_time = end_time - start_time
+
+            # print(f"Elapsed time: {elapsed_time:.2f} seconds")
 
         except IOError:
             print(
@@ -234,7 +301,7 @@ class Indexer(object):
 
 
 if __name__ == "__main__":
-    
+    dblp.download_dataset()
     indexer = Indexer(root="./", storeDir="./index/")
     indexer.indexing("dblp.xml", "dblp.json")
     indexer.ending()
