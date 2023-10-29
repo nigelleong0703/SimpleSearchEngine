@@ -29,7 +29,7 @@ class Searher(object):
         self.topK = topK
 
         # Create directory instance
-        store = FSDirectory.open(Paths.get(storeDir))
+        store = FSDirectory.open(Paths.get(store_dir))
 
         # Create DirectoryReader instance
         reader = DirectoryReader.open(store)
