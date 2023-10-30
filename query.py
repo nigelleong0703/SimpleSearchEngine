@@ -88,6 +88,9 @@ class Searher(object):
 
         # Create IndexSearcher
         self.searcher = IndexSearcher(reader)
+
+        # Number of Docs
+        self.NumOfDocs = self.searcher.getIndexReader().numDocs()
     
 
     def printResult(self, query, return_all:bool, save_to_local:bool, file_name:str, topK:int, printing:bool=True):
@@ -98,10 +101,10 @@ class Searher(object):
             list[map]: all docs within given year range [start, end)
         """
         if return_all:
-            number = self.searcher.getIndexReader().numDocs()
+            number = self.NumOfDocs
         else:
             number = topK
-
+        print(number)
         start_time = time.time()
         scoreDocs = self.searcher.search(query, number).scoreDocs
         end_time = time.time()
@@ -194,7 +197,7 @@ class Searher(object):
 
     
     def searchByKeyword(self, key:str, return_all=False, save_to_local=False, printing=True, top_k=None):
-        """
+        """ 
         Args:
             key (str): keyword, or phrase
             return_all(bool): should return all relevant result or TopK
@@ -206,8 +209,9 @@ class Searher(object):
         if top_k == None:
             top_k = self.topK
         # query_parser = QueryParser('title', self.analyzer)
-        queryParser = CustomQueryParser('title',self.analyzer)
-        query = queryParser.parse(key)
+        query_parser = CustomQueryParser('title',self.analyzer)
+        query = query_parser.parse(key)
+        print(query)
 
         self.printResult(query, return_all, save_to_local, f"keyword-{key}.json", top_k, printing)
         
@@ -245,16 +249,17 @@ class Searher(object):
         """
         if top_k == None:
             top_k = self.topK
+        # print()
         boolean_query = BooleanQuery.Builder()
         if key:
-            query_parser = QueryParser("title", self.analyzer).parse(key)
+            query_parser = CustomQueryParser('title',self.analyzer).parse(key)
             boolean_query.add(query_parser, BooleanClause.Occur.MUST)
         if author:
             query_parser = QueryParser("author", self.analyzer).parse(author)
             boolean_query.add(query_parser, BooleanClause.Occur.MUST)        
         if conf:
             key_query = TermQuery(Term('key',conf))
-            booktitle_query = QueryParser('booktitle',self.analyzer).parse(conf)      
+            booktitle_query = QueryParser('booktitle',self.analyzer).parse(conf)
             journal_query = QueryParser('journal', self.analyzer).parse(conf)
             boolean_conf_query = BooleanQuery.Builder()
             boolean_conf_query.add(key_query, BooleanClause.Occur.SHOULD)
@@ -268,7 +273,7 @@ class Searher(object):
                 year_query = IntPoint.newRangeQuery("year", start, start)
             boolean_query.add(year_query, BooleanClause.Occur.MUST)
 
-        self.printResult(boolean_query.build(), return_all, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json", top_k, printing)
+        self.printResult(boolean_query.build(), return_all, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json", topK=top_k, printing = printing)
 
 
     def multiField(self, return_all=False, save_to_local=False):
@@ -280,6 +285,8 @@ class Searher(object):
         top_k = input(f"Please enter the number of results returned (Default = {self.topK}, press Enter to skip): ")
         if top_k:
             top_k = int(top_k)
+        else:
+            top_k = None
         if start:
             start = int(start)
         if end:
@@ -294,7 +301,6 @@ if __name__ == "__main__":
     topK = 20
 
     searcher = Searher(store_dir = storeDir, topK = topK)
-    # searcher.multiFieldSearch(start=2021, conf='IEEE', return_all=True, save_to_local=True)
 
     while True:
         print()
@@ -344,7 +350,6 @@ if __name__ == "__main__":
                 top_k = int(top_k)
             else:
                 top_k = None
-            # search_by_title()
             searcher.searchByKeyword(key, top_k=top_k)
 
         elif option == "4":
@@ -363,8 +368,6 @@ if __name__ == "__main__":
             break
         else:
             print("Invalid option. Please try again.")
-
-
 
     # sys.stdout.close()
     # sys.stdout = sys.__stdout__
