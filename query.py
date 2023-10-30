@@ -104,7 +104,6 @@ class Searher(object):
             number = self.NumOfDocs
         else:
             number = topK
-        print(number)
         start_time = time.time()
         scoreDocs = self.searcher.search(query, number).scoreDocs
         
