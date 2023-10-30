@@ -104,9 +104,7 @@ class Searher(object):
 
         start_time = time.time()
         scoreDocs = self.searcher.search(query, number).scoreDocs
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed time: {elapsed_time:6f} seconds")
+        
 
         reading_list = []
         for index, scoreDoc in enumerate(scoreDocs):
@@ -133,7 +131,11 @@ class Searher(object):
                         print(f"{key}: {value}")
                 print()
             reading_list.append(temp_dict)
-
+            
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        
+        print(f"Elapsed time: {elapsed_time:6f} seconds")
         if save_to_local:
             with open(file_name, "w", encoding="utf-8") as file:
                 for item in reading_list:
