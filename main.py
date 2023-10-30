@@ -29,17 +29,53 @@ Usage
 import lucene
 from query import *
 from rake_nltk import Rake
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 storeDir = "./index/"
 topK = 20
 searcher = Searher(store_dir = storeDir, topK = topK)
     
-stop_words = ['abstract', 'approach', 'commitee', 'report', 'study']
+stop_words = ['abstract', 'approach', 'commitee', 'report', 'study', 'paper']
 
-def getConfHostspots(conf: str, start: int, end=2023):
+
+def describe(data: dict, title=None, xlabel=None, ylabel=None):
+    for li in data.items():
+        keyword = [item[0] for item in li[1]]
+        cnt = [item[1] for item in li[1]]
+        plt.plot()
+
+
+def getConfHotspotsEvo(conf: str, start: int, end=2023, tok_k=5):
     confRes = searcher.searchByConf(conf, return_all=True, printing=False)
+    keywords_glob = _getConfHotspots(confRes, start, end)[:tok_k]
+    res = {}
+    print('*'*10, 'Yearly Conference Hostspots Summary', '*'*10)
+    print('Research hotspots since', start, 'to', end, 'are', keywords_glob)
+    for i in range(start, end + 1):
+        keywords = _getConfHotspots(confRes, i, i)
+        res[i] = _intersect(keywords, keywords_glob)
+        print(str(i) + ':', res[i])
+    return res
+
+
+def _intersect(src: list, filter: list):
+    key = [item[0] for item in filter]
+    return [i for i in src if i[0] in key]
+
+
+def getConfHotspots(conf: str,  start: int, end=2023, top_k=5):
+    confRes = searcher.searchByConf(conf, return_all=True, printing=False)
+    keywordsMap = {}
+    print('*'*10, 'Keywords Summary', '*'*10)
+    for i in range(start, end + 1):
+        keywords = _getConfHotspots(confRes, i, i)
+        keywordsMap[i] = keywords[:top_k]
+        print(i, ":", keywordsMap[i])
+    return keywordsMap
+     
+
+def _getConfHotspots(confRes: list, start: int, end=2023):
     timeRes = searcher.searchByYearRange(start, end, return_all=True, printing=False)
     
     confUrl = {doc['url'] for doc in confRes if 'url' in doc}
@@ -51,7 +87,7 @@ def getConfHostspots(conf: str, start: int, end=2023):
     
     titles = [doc['title'] for doc in res]
     
-    print('*'*5 + ' Index Done, Start Keyword Extraction' + '*'*5)
+    # print('*'*5, 'Index Done, Start Keyword Extraction', '*'*5)
     rake = Rake(min_length=2, max_length=4)
     rake.extract_keywords_from_sentences(titles)
     keywords = rake.get_ranked_phrases()
@@ -71,8 +107,10 @@ def getConfHostspots(conf: str, start: int, end=2023):
 
 
 if __name__ == "__main__":
-    keywords = getConfHostspots("AAAI", 2022)
-    print(keywords[:10])
+    # keywords = getConfHotspots("AAAI", 2020)
+    res = getConfHotspotsEvo("AAAI", 2020)
+
+
     
     
     
