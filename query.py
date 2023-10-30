@@ -215,7 +215,7 @@ class Searher(object):
         query = query_parser.parse(key)
         print(query)
 
-        self.printResult(query, return_all, save_to_local, f"keyword-{key}.json", top_k, printing)
+        return self.printResult(query, return_all, save_to_local, f"keyword-{key}.json", top_k, printing)
         
 
     def searchByAuthor(self, author:str, return_all=False, save_to_local=False, printing=True, top_k=None):
@@ -233,7 +233,7 @@ class Searher(object):
         query_parser = QueryParser('author', self.analyzer)
         query = query_parser.parse(author)
 
-        self.printResult(query, return_all, save_to_local, f"author-{author}.json", top_k, printing)
+        return self.printResult(query, return_all, save_to_local, f"author-{author}.json", top_k, printing)
 
 
     def multiFieldSearch(self, start: int=None, end: int=None, conf: str=None, key :str=None, author :str=None, return_all=False, save_to_local=False, printing=True, top_k = None):
@@ -275,7 +275,7 @@ class Searher(object):
                 year_query = IntPoint.newRangeQuery("year", start, start)
             boolean_query.add(year_query, BooleanClause.Occur.MUST)
 
-        self.printResult(boolean_query.build(), return_all, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json", topK=top_k, printing = printing)
+        return self.printResult(boolean_query.build(), return_all, save_to_local, f"multi-{start}-{end}-{conf}-{key}-{author}.json", topK=top_k, printing = printing)
 
 
     def multiField(self, return_all=False, save_to_local=False):
