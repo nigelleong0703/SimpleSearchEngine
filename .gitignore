@@ -1,3 +1,5 @@
 dblp.*
 index/
-__pycache/
+__pycache__/
+utils/__pycache__/
+.vscode

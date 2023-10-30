@@ -61,7 +61,16 @@ Provided function including
 - save_to_local: if the results need to be outputed to one json file:
 - inside the output file: it is a list of dict, one line is one dict, like this structure:
 ```
-{type:article, ..... , ......}
-{type:article, ..... , ......}
+{'type': 'inproceedings',
+ 'mdate': '-1516881920',
+ 'key': 'conf/aaai/AmirSS15',
+ 'author': ['Ofra Amir','Guni Sharon','Roni Stern'],
+ 'title': 'Multi-Agent Pathfinding as a Combinatorial Auction.',
+ 'pages': '2003-2009',
+ 'year': '2015',
+ 'booktitle': 'AAAI',
+ 'ee': 'https://doi.org/10.1609/aaai.v29i1.9427',
+ 'crossref': 'conf/aaai/2015',
+ 'url': 'db/conf/aaai/aaai2015.html#AmirSS15'}
 ```
 to read back the file, you need to read the file LINE BY LINE and convert back to dict
