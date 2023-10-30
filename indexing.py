@@ -9,7 +9,7 @@ from datetime import datetime
 from utils import dblp
 from lxml import etree
 from java.util import HashMap
-from org.apache.lucene.analysis.standard import StandardAnalyzer, StandardTokenizer
+from org.apache.lucene.analysis.standard import StandardTokenizer
 from org.apache.lucene.analysis import LowerCaseFilter, StopFilter
 from org.apache.lucene.analysis.en import PorterStemFilter, EnglishAnalyzer
 from org.apache.lucene.document import Document, Field, StringField, FieldType, TextField, IntPoint, SortedNumericDocValuesField, LongPoint, StoredField, NumericDocValuesField
@@ -93,16 +93,10 @@ class CustomAnalyzer(EnglishAnalyzer):
         key_filter = LowerCaseFilter(source)
         analyzer_per_field.put("key", key_filter)
         author_filter = LowerCaseFilter(source)
-        # author_filter = StopFilter(True, author_filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
         analyzer_per_field.put("author", author_filter)
         wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
 
-        # analyzer_per_field = HashMap()
-        # analyzer_per_field.put("author",_____)
-        # wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
         return wrapper
-
-        # return self.TokenStreamComponents(source, filter)
 
 
 class Indexer(object):
@@ -117,10 +111,6 @@ class Indexer(object):
         Return: None
 
         """
-        # read database
-        jsondir = os.path.join(root,"dblp.json")
-        # self.database = self.ReadJson(jsondir)
-        
 
         if not os.path.exists(storeDir):
             os.mkdir(storeDir)
@@ -179,12 +169,10 @@ class Indexer(object):
         doc = Document()
         doc.add(Field("type", element.tag, StringField.TYPE_STORED))
 
-        # doc.add(Field("mdate", element.attrib["mdate"],TextField.TYPE_STORED))
-        doc.add(LongPoint('mdate', int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
-        doc.add(NumericDocValuesField('mdate', int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
-        doc.add(StoredField("mdate",  int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
+        # doc.add(LongPoint('mdate', int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
+        # doc.add(NumericDocValuesField('mdate', int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
+        # doc.add(StoredField("mdate",  int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000)))
 
-        # doc.add(Field("mdate", int(datetime.strptime(element.attrib["mdate"], '%Y-%m-%d').timestamp() * 1000), LongPoint.TYPE_STORED))
         doc.add(Field("key", element.attrib["key"], TextField.TYPE_STORED))
         # print(element.attrib["key"])
         if (element.get('publtype') is not None):
@@ -257,11 +245,6 @@ class Indexer(object):
                         self.IndexSingle(temp_element)
                         number = number + 1
                         pbar.update(1)
-                        # if number > 1025607 and not time_updated:
-                        #     end_time = time.time()
-                        #     time_updated = True
-                        #     elapsed_time = end_time - start_time
-                        #     print(f"Elapsed time: {elapsed_time:.2f} seconds")
                         if number >= total_iterations * percent / 100:
                             current_time = time.time()
                             elapsed_time = current_time-start_time
@@ -284,11 +267,6 @@ class Indexer(object):
             with open('times_per_cycle.txt', 'w') as f:
                 for t in time_per_cycle:
                     f.write(f'{t}\n')
-            
-            # # Calculate the elapsed time
-            # elapsed_time = end_time - start_time
-
-            # print(f"Elapsed time: {elapsed_time:.2f} seconds")
 
         except IOError:
             print(
