@@ -40,11 +40,31 @@ stop_words = ['abstract', 'approach', 'commitee', 'report', 'study', 'paper']
 
 
 def describe(data: dict, title=None, xlabel=None, ylabel=None):
-    for li in data.items():
-        keyword = [item[0] for item in li[1]]
-        cnt = [item[1] for item in li[1]]
-        plt.plot()
+    years = list(data.keys())
+    plt.figure(figsize=(10, 8), dpi=100)
+    plt.xticks(years, years)
+    counts = {}
+    for year in years:
+        for item in data[year]:
+            if item[0] in counts:
+                counts[item[0]].append(item[1])
+            else:
+                counts[item[0]] = [item[1]]
+    
+    for key, cnts in counts.items():
+        plt.plot(years, cnts, label=key)
+    
+    plt.legend()
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.savefig(title)
+    plt.show()
 
+
+def getPivotAuthors():
+    pass
+    
 
 def getConfHotspotsEvo(conf: str, start: int, end=2023, tok_k=5):
     confRes = searcher.searchByConf(conf, return_all=True, printing=False)
@@ -108,11 +128,12 @@ def _getConfHotspots(confRes: list, start: int, end=2023):
 
 if __name__ == "__main__":
     # keywords = getConfHotspots("AAAI", 2020)
-    res = getConfHotspotsEvo("AAAI", 2020)
-
-
-    
-    
+    data = {2020: [('reinforcement learning', 13), ('supervised learning', 13), ('task learning', 11), ('machine learning', 8), ('shot learning', 8)],
+            2021: [('supervised learning', 15), ('shot learning', 15), ('reinforcement learning', 14), ('task learning', 11), ('machine learning', 9)],
+            2022: [('supervised learning', 15), ('reinforcement learning', 14), ('shot learning', 10), ('machine learning', 8), ('task learning', 6)],
+            2023: [('supervised learning', 14), ('reinforcement learning', 10), ('machine learning', 8), ('task learning', 8), ('shot learning', 7)]}
+    # res = getConfHotspotsEvo("AAAI", 2020)
+    describe(data, title="Hotspots Evolution in AAAI", xlabel="Year", ylabel="Count")    
     
 
     
