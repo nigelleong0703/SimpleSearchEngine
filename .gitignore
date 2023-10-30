@@ -3,3 +3,5 @@ index/
 __pycache__/
 utils/__pycache__/
 .vscode
+*.png
+*.ipynb
