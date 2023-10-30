@@ -93,7 +93,7 @@ class CustomAnalyzer(EnglishAnalyzer):
         key_filter = LowerCaseFilter(source)
         analyzer_per_field.put("key", key_filter)
         author_filter = LowerCaseFilter(source)
-        author_filter = StopFilter(True, author_filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
+        # author_filter = StopFilter(True, author_filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
         analyzer_per_field.put("author", author_filter)
         wrapper = PerFieldAnalyzerWrapper(self.TokenStreamComponents(source, filter), analyzer_per_field)
 
