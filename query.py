@@ -104,9 +104,10 @@ class Searher(object):
             number = self.NumOfDocs
         else:
             number = topK
+        
         start_time = time.time()
         scoreDocs = self.searcher.search(query, number).scoreDocs
-        
+        print('*'*5, number, 'documents found, converting', '*'*5)
 
         reading_list = []
         for index, scoreDoc in enumerate(scoreDocs):

@@ -30,16 +30,20 @@ import lucene
 from query import *
 from rake_nltk import Rake
 import matplotlib.pyplot as plt
+from thefuzz import fuzz
 
 
 storeDir = "./index/"
 topK = 20
 searcher = Searher(store_dir = storeDir, topK = topK)
+
+FUZZY_THRESH = 80
     
 stop_words = ['abstract', 'approach', 'commitee', 'report', 'study', 'paper']
 
 
 def describe(data: dict, title=None, xlabel=None, ylabel=None):
+    plt.rcParams.update({'axes.labelsize': 'large'})
     years = list(data.keys())
     plt.figure(figsize=(10, 8), dpi=100)
     plt.xticks(years, years)
@@ -63,17 +67,37 @@ def describe(data: dict, title=None, xlabel=None, ylabel=None):
     for key, cnts in counts.items():
         plt.plot(years, cnts, label=key)
     
-    plt.legend()
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
+    fontsize = 14
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.legend(fontsize=str(fontsize))
+    plt.xlabel(xlabel, fontsize=fontsize)
+    plt.ylabel(ylabel, fontsize=fontsize)
     plt.savefig(title)
     plt.show()
 
 
-def getPivotAuthors(conf: str, keyword: str, start: int, end=2023):
-    
-    
+def getPivotAuthors(keyword: str, start: int, end=2023, conf=None):
+    # 1. Get keyword of this doc
+    docs = searcher.multiFieldSearch(start, end, conf, printing=False, top_k=1000000)
+    rake = Rake(min_length=2, max_length=4)
+    authors = {}
+    for doc in docs:
+        rake.extract_keywords_from_text(doc['title'])
+        keywords = rake.get_ranked_phrases()
+        for k in keywords:
+            if fuzz.token_set_ratio(k, keyword) < FUZZY_THRESH:
+                continue
+            # 2. If match given keyword, fields['author']++
+            if 'author' not in doc:
+                continue
+            for author in doc['author']:
+                if author in authors:
+                    authors[author] += 1
+                else:
+                    authors[author] = 1
+            continue
+    return sorted(authors.items(), key=lambda x: x[1], reverse=True)
     
 
 def getConfHotspotsEvo(conf: str, start: int, end=2023, top_k=5):
@@ -128,11 +152,31 @@ def _getConfHotspots(conf: str, start: int, end=2023):
 
 
 if __name__ == "__main__":
-    # keywords = getConfHotspots("AAAI", 2020)
+    import argparse
     
-    data = getConfHotspotsEvo("AAAI", 2014, top_k=5)
-    describe(data, title="Hotspots Evolution of AAAI in recent 10 years", xlabel="Year", ylabel="Count")    
-    # keyword = getConfHotspots("AAAI", 2020)
+    parser = argparse.ArgumentParser(description="visdoc: Research Trend Explorer App")
+    
+    # Define hints for the functions
+    parser.add_argument("function", choices=["getConfHotspots", "getPivotAuthors", "getHotspotsEvo"], help="Select a function (e.g., 'getConfHotspots')")
+    
+    # Define hints for the arguments
+    parser.add_argument("--conference", help="Specify the conference name (e.g., 'AAAI')")
+    parser.add_argument("--start", type=int, help="Specify the start year (e.g., 2018)")
+    parser.add_argument("--end", type=int, help="Specify the end year (e.g., 2023)")
+    parser.add_argument("--research_field", help="Specify the research field (e.g., 'LLM')")
+    
+    args = parser.parse_args()
+    
+    if not args.end:
+        args.end = 2023
+
+    if args.function == "getConfHotspots":
+        getConfHotspots(args.conference, args.start)
+    elif args.function == "getPivotAuthors":
+        getPivotAuthors(args.research_field, args.start, args.end. args.conference)
+    elif args.function == "getHotspotsEvo":
+        getHotspotsEvo(args.conference, args.start, args.end)
+
 
     
 
